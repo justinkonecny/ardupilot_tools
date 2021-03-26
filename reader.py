@@ -84,7 +84,7 @@ class Reader:
 
         if msg_id == 0:
             gsx, gsy = [float(x) for x in groups[1:]]
-            gs = sqrt(pow(gsx, 2) + pow(gsy, 2)) * 100.0
+            gs = sqrt(pow(gsx, 2) + pow(gsy, 2)) * 100.0  # convert to speed in cm/s
             self.sd_sensor_data[GROUND_SPEED].append((time_ms, gs))
 
         elif msg_id == 1:
