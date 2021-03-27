@@ -5,7 +5,7 @@ from constants import *
 from reader import Reader
 
 
-class Analyze:
+class Analyzer:
     def __init__(self, r: Reader):
         self.r = r
 

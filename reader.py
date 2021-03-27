@@ -176,7 +176,7 @@ class Reader:
     def load_log_file(self, filename: str = None):
         if filename is None:
             dir_contents = os.listdir(".")
-            dir_contents.sort()
+            dir_contents.sort(reverse=True)
 
             for obj in dir_contents:
                 if obj[:3] == "out" and obj[-4:] == ".log":
@@ -187,6 +187,7 @@ class Reader:
             print("No log files found")
             return
 
+        print("Loading %s" % filename)
         with open(filename, "r") as file:
             content_str = file.read()
             content_dict = json.loads(content_str)
