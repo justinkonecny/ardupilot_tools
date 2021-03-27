@@ -5,25 +5,21 @@ from analyze import Analyze
 from reader import Reader
 
 
-LOG_FILE = "out_outdoor2.log"
-
-
 def main():
     r = Reader()
     a = Analyze(r)
 
-    # read_new_data(r)
+    read_new_data(r, 30)
 
-    r.load_log_file(LOG_FILE)
-    a.cmp_ground_speed()
-    a.cmp_velocity_x()
-    a.cmp_velocity_y()
-    a.cmp_velocity_z()
+    # r.load_log_file()
+    # a.cmp_ground_speed()
+    # a.cmp_velocity_x()
+    # a.cmp_velocity_y()
+    # a.cmp_velocity_z()
+    # a.show_sat_count()
 
-    a.show_sat_count()
 
-
-def read_new_data(r: Reader):
+def read_new_data(r: Reader, time: int = 30):
     # start a connection listening to a UDP port
     r.setup()
 
@@ -31,12 +27,12 @@ def read_new_data(r: Reader):
     threads = start_threads(r)
 
     # wait (seconds)
-    sleep(30)
+    sleep(time)
 
     # stop reading / analyzing data
     stop_threads(r, threads)
 
-    r.save_log_file(LOG_FILE)
+    r.save_log_file()
 
 
 def start_threads(r: Reader):

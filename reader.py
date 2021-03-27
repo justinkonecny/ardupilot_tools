@@ -1,5 +1,7 @@
 import json
+import os
 import re
+from datetime import datetime
 from math import sqrt
 
 from pymavlink import mavutil
@@ -155,7 +157,11 @@ class Reader:
     def get_gps_log(self, data_key: str = None) -> list:
         return self.gps_sensor_data if data_key is None else self.gps_sensor_data[data_key]
 
-    def save_log_file(self, filename: str = "out.log"):
+    def save_log_file(self, filename: str = None):
+        if filename is None:
+            curr_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = "out_{}.log".format(curr_time)
+
         with open(filename, "w") as file:
             output_dict = {
                 PREFIX_SD: self.sd_sensor_data,
@@ -164,7 +170,23 @@ class Reader:
             output_str = json.dumps(output_dict)
             file.write(output_str)
 
-    def load_log_file(self, filename: str = "out.log"):
+        print("Writing log file: %s" % filename)
+        return filename
+
+    def load_log_file(self, filename: str = None):
+        if filename is None:
+            dir_contents = os.listdir(".")
+            dir_contents.sort()
+
+            for obj in dir_contents:
+                if obj[:3] == "out" and obj[-4:] == ".log":
+                    filename = obj
+                    break
+
+        if filename is None:
+            print("No log files found")
+            return
+
         with open(filename, "r") as file:
             content_str = file.read()
             content_dict = json.loads(content_str)
