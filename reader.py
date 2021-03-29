@@ -151,11 +151,17 @@ class Reader:
         else:
             print("UNKNOWN MESSAGE WITH ID: %d" % msg_id)
 
-    def get_sd_log(self, data_key: str = None) -> list:
-        return self.sd_sensor_data if data_key is None else self.sd_sensor_data[data_key]
+    def get_sd_log_by_key(self, data_key: str) -> list:
+        return self.sd_sensor_data[data_key]
 
-    def get_gps_log(self, data_key: str = None) -> list:
-        return self.gps_sensor_data if data_key is None else self.gps_sensor_data[data_key]
+    def get_gps_log_by_key(self, data_key: str) -> list:
+        return self.gps_sensor_data[data_key]
+
+    def get_sd_log_full(self) -> dict:
+        return self.sd_sensor_data
+
+    def get_gps_log_full(self) -> dict:
+        return self.gps_sensor_data
 
     def save_log_file(self, filename: str = None):
         if filename is None:

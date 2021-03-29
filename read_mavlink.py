@@ -1,8 +1,22 @@
+import os
+from pprint import pprint
 from threading import Thread
 from time import sleep
 
 from analyzer import Analyzer
 from reader import Reader
+
+"""
+{'out_2021-03-27_12-14-27.log': {'GS': 133.55597888344857,
+                                 'VX': 1.514674,
+                                 'VY': 0.6522990000000001,
+                                 'VZ': 0.07494099999999998},
+                                 
+ 'out_2021-03-27_12-18-14.log': {'GS': 986.42560408685,
+                                 'VX': 10.07817,
+                                 'VY': 0.916002,
+                                 'VZ': 0.739931}}
+"""
 
 
 def main():
@@ -10,7 +24,20 @@ def main():
     a = Analyzer(r)
 
     # read_new_data(r, 30)
-    show_data(r, a, "out_2021-03-27_12-18-14.log")
+    show_data(r, a, "out_2021-03-27_12-14-27.log")
+    print_thresholds(r, a)
+
+
+def print_thresholds(r: Reader, a: Analyzer):
+    dir_contents = os.listdir(".")
+    dir_contents.sort(reverse=True)
+    thresholds = {}
+    for filename in dir_contents:
+        if filename[:3] == "out" and filename[-4:] == ".log":
+            r.load_log_file(filename)
+            result = a.get_max_thresholds()
+            thresholds[filename] = result
+    pprint(thresholds)
 
 
 def read_new_data(r: Reader, time: int):
