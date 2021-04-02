@@ -11,11 +11,6 @@ from reader import Reader
                                  'VX': 1.514674,
                                  'VY': 0.6522990000000001,
                                  'VZ': 0.07494099999999998},
-                                 
- 'out_2021-03-27_12-18-14.log': {'GS': 986.42560408685,
-                                 'VX': 10.07817,
-                                 'VY': 0.916002,
-                                 'VZ': 0.739931}}
 """
 
 
@@ -23,13 +18,25 @@ def main():
     r = Reader()
     a = Analyzer(r)
 
-    # read_new_data(r, 30)
-    show_data(r, a, "out_2021-03-27_12-14-27.log")
-    print_thresholds(r, a)
+    # read_new_data(r, 10)
+    show_data(r, a)
+
+    # print_thresholds(r, a)
+    # create_all_csvs(r, a)
+
+
+def create_all_csvs(r: Reader, a: Analyzer, log: str = None):
+    r.load_log_file(log)
+
+    all_csvs = a.get_all_csv_list()
+    for key, csv_list in all_csvs.items():
+        with open("csvs/{}.csv".format(key.lower()), "w") as file:
+            for line in csv_list:
+                file.write(line)
 
 
 def print_thresholds(r: Reader, a: Analyzer):
-    dir_contents = os.listdir(".")
+    dir_contents = os.listdir("logs")
     dir_contents.sort(reverse=True)
     thresholds = {}
     for filename in dir_contents:
