@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from pprint import pprint
 from threading import Thread
 from time import sleep
@@ -18,21 +19,52 @@ def main():
     r = Reader()
     a = Analyzer(r)
 
-    # read_new_data(r, 10)
-    show_data(r, a)
+    # read_new_data(r, 30)
+    # show_data(r, a)
 
     # print_thresholds(r, a)
-    # create_all_csvs(r, a)
+    create_all_csvs(r, a)
 
 
-def create_all_csvs(r: Reader, a: Analyzer, log: str = None):
-    r.load_log_file(log)
+def create_all_csvs(r: Reader, a: Analyzer):
+    dir_contents = os.listdir("logs")
+    dir_contents.sort(reverse=True)
 
-    all_csvs = a.get_all_csv_list()
-    for key, csv_list in all_csvs.items():
-        with open("csvs/{}.csv".format(key.lower()), "w") as file:
-            for line in csv_list:
-                file.write(line)
+    diffs = defaultdict(list)
+    diffs_sq = defaultdict(list)
+
+    for filename in dir_contents:
+        if filename[:3] == "out" and filename[-4:] == ".log":
+            r.load_log_file(filename)
+
+            out_folder = "csvs/{}".format(filename[:-4])
+            if not os.path.exists(out_folder):
+                os.mkdir(out_folder)
+
+            all_csvs = a.get_all_csv_list()
+            for key, csv_list in all_csvs.items():
+
+                vals = csv_list[1].split(",")[-2:]
+                avg_diff = int(float(vals[0]))
+                avg_diff_sq = int(float(vals[1]))
+
+                diffs[key].append(avg_diff)
+                diffs_sq[key].append(avg_diff_sq)
+
+                with open("{}/{}.csv".format(out_folder, key.lower()), "w") as file:
+                    for line in csv_list:
+                        file.write(line)
+    avgs = {}
+    avgs_sq = {}
+
+    for key, l in diffs.items():
+        avgs[key] = int(sum(l) / len(l))
+
+    for key, l in diffs_sq.items():
+        avgs_sq[key] = int(sum(l) / len(l))
+
+    print("AVG:", avgs)
+    print("AVG SQS:", avgs_sq)
 
 
 def print_thresholds(r: Reader, a: Analyzer):
@@ -74,6 +106,7 @@ def show_data(r: Reader, a: Analyzer, log_file: str = None):
     a.cmp_velocity_x()
     a.cmp_velocity_y()
     a.cmp_velocity_z()
+    a.show_spf_diff()
 
 
 def start_threads(r: Reader):

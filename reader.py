@@ -26,6 +26,12 @@ class Reader:
             VELOCITY_Y: [],
             VELOCITY_Z: []
         }
+        self.spf_data = {
+            GROUND_SPEED_DIFF: [],
+            VELOCITY_X_DIFF: [],
+            VELOCITY_Y_DIFF: [],
+            VELOCITY_Z_DIFF: []
+        }
 
     def setup(self):
         # start a connection listening to a UDP port
@@ -51,10 +57,15 @@ class Reader:
             if len(text) < 8:
                 continue
 
-            if text[:len(MSG_PREFIX_SD)] == MSG_PREFIX_SD:
+            if text[:len(MSG_PREFIX_SPF)] == MSG_PREFIX_SPF:
+                # handle spoofing alert messages
+                self.handle_spf_msg(text[len(MSG_PREFIX_SPF):])
+            elif text[:len(MSG_PREFIX_SD)] == MSG_PREFIX_SD:
+                # handle sensor data messages
                 msg_id = int(text[len(MSG_PREFIX_SD)])
                 self.handle_sd_msg(msg_id, text[len(MSG_PREFIX_SD) + 1:])
             elif text[:len(MSG_PREFIX_GPS)] == MSG_PREFIX_GPS:
+                # handle gps data messages
                 msg_id = int(text[len(MSG_PREFIX_GPS)])
                 self.handle_gps_msg(msg_id, text[len(MSG_PREFIX_GPS) + 1:])
 
@@ -68,7 +79,7 @@ class Reader:
         :param text:
         :return:
         """
-        match = re.match(REGEX_SD[msg_id], text)
+        match = re.match(REGEX_SD, text)
         if match is None:
             return
 
@@ -91,7 +102,7 @@ class Reader:
         :param text:
         :return:
         """
-        match = re.match(REGEX_GPS[msg_id], text)
+        match = re.match(REGEX_GPS, text)
         if match is None:
             return
 
@@ -108,17 +119,48 @@ class Reader:
         else:
             print("UNKNOWN MESSAGE WITH ID: %d" % msg_id)
 
+    def handle_spf_msg(self, text: str):
+        """
+        "SPF[%lu]%d;%d;%d;%d",
+            time_ms,
+            defender.spoof_state.ground_speed_diff,
+            defender.spoof_state.velocity_x_diff,
+            defender.spoof_state.velocity_y_diff,
+            defender.spoof_state.velocity_z_diff
+        :param text:
+        :return:
+        """
+
+        match = re.match(REGEX_SPF, text)
+        if match is None:
+            return
+
+        groups = match.groups()
+        time_ms = int(groups[0])
+
+        gsd, vxd, vyd, vzd = [float(x) for x in groups[1:]]
+        self.spf_data[GROUND_SPEED_DIFF].append((time_ms, gsd))
+        self.spf_data[VELOCITY_X_DIFF].append((time_ms, vxd))
+        self.spf_data[VELOCITY_Y_DIFF].append((time_ms, vyd))
+        self.spf_data[VELOCITY_Z_DIFF].append((time_ms, vzd))
+
     def get_sd_log_by_key(self, data_key: str) -> list:
         return self.sd_sensor_data[data_key]
 
     def get_gps_log_by_key(self, data_key: str) -> list:
         return self.gps_sensor_data[data_key]
 
+    def get_spf_log_by_key(self, data_key: str) -> list:
+        return self.spf_data[data_key]
+
     def get_sd_log_full(self) -> dict:
         return self.sd_sensor_data
 
     def get_gps_log_full(self) -> dict:
         return self.gps_sensor_data
+
+    def get_spf_log_full(self) -> dict:
+        return self.spf_data
 
     def save_log_file(self, filename: str = None):
         if filename is None:
@@ -128,7 +170,8 @@ class Reader:
         with open("logs/{}".format(filename), "w") as file:
             output_dict = {
                 PREFIX_SD: self.sd_sensor_data,
-                PREFIX_GPS: self.gps_sensor_data
+                PREFIX_GPS: self.gps_sensor_data,
+                PREFIX_SPF: self.spf_data
             }
             output_str = json.dumps(output_dict)
             file.write(output_str)
@@ -156,3 +199,4 @@ class Reader:
             content_dict = json.loads(content_str)
             self.sd_sensor_data = content_dict[PREFIX_SD]
             self.gps_sensor_data = content_dict[PREFIX_GPS]
+            self.spf_data = content_dict[PREFIX_SPF]

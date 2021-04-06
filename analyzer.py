@@ -1,3 +1,5 @@
+from math import sqrt
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,19 +20,19 @@ class Analyzer:
     def cmp_velocity_x(self):
         key = VELOCITY_X
         title = "Velocity (X)"
-        y_label = "Velocity (m/s)"
+        y_label = "Velocity (cm/s)"
         self.compare_value(key, title, y_label)
 
     def cmp_velocity_y(self):
         key = VELOCITY_Y
         title = "Velocity (Y)"
-        y_label = "Velocity (m/s)"
+        y_label = "Velocity (cm/s)"
         self.compare_value(key, title, y_label)
 
     def cmp_velocity_z(self):
         key = VELOCITY_Z
         title = "Velocity (Z)"
-        y_label = "Velocity (m/s)"
+        y_label = "Velocity (cm/s)"
         self.compare_value(key, title, y_label)
 
     def show_sat_count(self):
@@ -38,9 +40,26 @@ class Analyzer:
         gps_list_time, gps_list_count = self.get_plot_values(gps_sc_raw)
 
         title = "Satellite Count"
-        x_label = "Time"
+        x_label = "Time (ms)"
         y_label = "Satellite Count"
         self.create_plot(title, x_label, y_label, gps_list_time, gps_list_count)
+
+    def show_spf_diff(self):
+        spf_gs_raw = self.r.get_spf_log_by_key(GROUND_SPEED_DIFF)  # list of (time_ms, diff)
+        spf_vx_raw = self.r.get_spf_log_by_key(VELOCITY_X_DIFF)  # list of (time_ms, diff)
+        spf_vy_raw = self.r.get_spf_log_by_key(VELOCITY_Y_DIFF)  # list of (time_ms, diff)
+        spf_vz_raw = self.r.get_spf_log_by_key(VELOCITY_Z_DIFF)  # list of (time_ms, diff)
+
+        spf_list_time, spf_list_gsd = self.get_plot_values(spf_gs_raw)
+        _, spf_list_vxd = self.get_plot_values(spf_vx_raw)
+        _, spf_list_vyd = self.get_plot_values(spf_vy_raw)
+        _, spf_list_vzd = self.get_plot_values(spf_vz_raw)
+
+        title = "SPF Threshold Differences"
+        x_label = "Time (ms)"
+        y_label = "Threshold Differences (cm)"
+
+        self.create_spf_plot(title, x_label, y_label, spf_list_time, spf_list_gsd, spf_list_vxd, spf_list_vyd, spf_list_vzd)
 
     def compare_value(self, key, title, y_label):
         sd_raw = self.r.get_sd_log_by_key(key)  # list of (time_ms, val)
@@ -77,6 +96,18 @@ class Analyzer:
         plt.plot(x2, y2, color="red", label="GPS", markersize=4, marker='o')
 
         plt.fill(np.append(x1, x2[::-1]), np.append(y1, y2[::-1]), color="#EEEEEE")
+
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.title(title)
+        plt.legend()
+        plt.show()
+
+    def create_spf_plot(self, title, x_label, y_label, x_vals, gsd_vals, vxd_vals, vyd_vals, vzd_vals):
+        plt.plot(x_vals, gsd_vals, color="orange", label="Ground Speed Diff", markersize=4, marker='o')
+        plt.plot(x_vals, vxd_vals, color="blue", label="Velocity X Diff", markersize=4, marker='o')
+        plt.plot(x_vals, vyd_vals, color="red", label="Velocity Y Diff", markersize=4, marker='o')
+        plt.plot(x_vals, vzd_vals, color="green", label="Velocity Z Diff", markersize=4, marker='o')
 
         plt.xlabel(x_label)
         plt.ylabel(y_label)
@@ -170,16 +201,14 @@ class Analyzer:
                 csv.append(line)
 
             diff_avg = sum(plot_diff_list) / len(plot_diff_list)
-            diff_sq_avg = sum(plot_diff_sq_list) / len(plot_diff_sq_list)
+            diff_sq_avg = sqrt(sum(plot_diff_sq_list) / len(plot_diff_sq_list))
 
             csv[1] = csv[1][:-1] + ",,{},{}\n".format(diff_avg, diff_sq_avg)
 
             all_csvs[key] = csv
 
-            # TODO delete when we have new data
-            y_lim = (0, 85000) if key == GROUND_SPEED else (0, 12)
-
+            # y_lim = (0, 12)
             # self.create_plot("SD/GPS Diff {}".format(key), "Time (ms)", "Difference", plot_time_list, plot_diff_list, None, y_lim)
-            self.create_plot("SD/GPS Diff {}".format(key), "Time (ms)", "Difference Squared", plot_time_list, plot_diff_sq_list, None, y_lim)
+            # self.create_plot("SD/GPS Diff {}".format(key), "Time (ms)", "Difference Squared", plot_time_list, plot_diff_sq_list, None, y_lim)
 
         return all_csvs
