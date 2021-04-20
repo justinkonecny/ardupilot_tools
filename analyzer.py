@@ -1,15 +1,17 @@
 from math import sqrt
+from threading import Lock
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 from constants import *
 from reader import Reader
 
 
 class Analyzer:
-    def __init__(self, r: Reader):
+    def __init__(self, r: Reader, lock: Lock):
         self.r = r
+        self.mutex = lock
+        self.run = False
 
     def cmp_ground_speed(self):
         key = GROUND_SPEED
@@ -35,8 +37,17 @@ class Analyzer:
         y_label = "Velocity (cm/s)"
         self.compare_value(key, title, y_label)
 
+    def cmp_altitude(self):
+        key = ALTITUDE
+        title = "Altitude"
+        y_label = "Altitude (cm)"
+        self.compare_value(key, title, y_label)
+
     def show_sat_count(self):
         gps_sc_raw = self.r.get_gps_log_by_key(SAT_COUNT)  # list of (time_ms, count)
+        if len(gps_sc_raw) == 0:
+            return
+
         gps_list_time, gps_list_count = self.get_plot_values(gps_sc_raw)
 
         title = "Satellite Count"
@@ -49,32 +60,47 @@ class Analyzer:
         spf_vx_raw = self.r.get_spf_log_by_key(VELOCITY_X_DIFF)  # list of (time_ms, diff)
         spf_vy_raw = self.r.get_spf_log_by_key(VELOCITY_Y_DIFF)  # list of (time_ms, diff)
         spf_vz_raw = self.r.get_spf_log_by_key(VELOCITY_Z_DIFF)  # list of (time_ms, diff)
+        spf_alt_raw = self.r.get_spf_log_by_key(ALTITUDE_DIFF)  # list of (time_ms, diff)
+
+        if len(spf_gs_raw) == 0 \
+                and len(spf_vx_raw) == 0 \
+                and len(spf_vy_raw) == 0 \
+                and len(spf_vz_raw) == 0 \
+                and len(spf_alt_raw) == 0:
+            return
 
         spf_list_time, spf_list_gsd = self.get_plot_values(spf_gs_raw)
         _, spf_list_vxd = self.get_plot_values(spf_vx_raw)
         _, spf_list_vyd = self.get_plot_values(spf_vy_raw)
         _, spf_list_vzd = self.get_plot_values(spf_vz_raw)
+        _, spf_list_altd = self.get_plot_values(spf_alt_raw)
 
         title = "SPF Threshold Differences"
         x_label = "Time (ms)"
         y_label = "Threshold Differences (cm)"
 
-        self.create_spf_plot(title, x_label, y_label, spf_list_time, spf_list_gsd, spf_list_vxd, spf_list_vyd, spf_list_vzd)
+        self.create_spf_plot(title, x_label, y_label, spf_list_time, spf_list_gsd, spf_list_vxd, spf_list_vyd, spf_list_vzd, spf_list_altd)
 
     def compare_value(self, key, title, y_label):
-        sd_raw = self.r.get_sd_log_by_key(key)  # list of (time_ms, val)
-        sd_list_time, sd_list_val = self.get_plot_values(sd_raw)
-
+        uninhibited_raw = self.r.get_uninhibited_log_by_key(key)  # list of (time_ms, val)
+        inhibited_raw = self.r.get_inhibited_log_by_key(key)  # list of (time_ms, val)
         gps_raw = self.r.get_gps_log_by_key(key)  # list of (time_ms, val)
+        if len(inhibited_raw) == 0 or len(gps_raw) == 0:
+            return
+
+        uninhibited_list_time, uninhibited_list_val = self.get_plot_values(uninhibited_raw)
+        inhibited_list_time, inhibited_list_val = self.get_plot_values(inhibited_raw)
         gps_list_time, gps_list_val = self.get_plot_values(gps_raw)
 
+        uninhibited_time = int((uninhibited_list_time[-1] - uninhibited_list_time[0]) / 1000)
+        inhibited_time = int((inhibited_list_time[-1] - inhibited_list_time[0]) / 1000)
         gps_time = int((gps_list_time[-1] - gps_list_time[0]) / 1000)
-        sd_time = int((sd_list_time[-1] - sd_list_time[0]) / 1000)
-        max_time = max(gps_time, sd_time)
+        max_time = max(uninhibited_time, gps_time, inhibited_time)
 
-        print("'%s' (%d sec): (%d SD values, %d GPS values)" % (title, max_time, len(sd_raw), len(gps_raw)))
+        print("%s (%d sec): (%d inhibited, %d uninhibited, %d GPS)" % (title.ljust(13), max_time, len(inhibited_raw), len(uninhibited_raw), len(gps_raw)))
 
-        self.create_comparison_plot(title, "Time (ms)", y_label, sd_list_time, sd_list_val, gps_list_time, gps_list_val)
+        self.create_comparison_plot(title, "Time (ms)", y_label, uninhibited_list_time, uninhibited_list_val, inhibited_list_time, inhibited_list_val,
+                                    gps_list_time, gps_list_val)
 
     def get_plot_values(self, tuple_list: list) -> tuple:
         list_time = []
@@ -85,17 +111,10 @@ class Analyzer:
 
         return list_time, list_val
 
-    def create_comparison_plot(self, title, x_label, y_label, sd_x_vals, sd_y_vals, gps_x_vals, gps_y_vals):
-        x1 = np.array(sd_x_vals)
-        y1 = np.array(sd_y_vals)
-
-        x2 = np.array(gps_x_vals)
-        y2 = np.array(gps_y_vals)
-
-        plt.plot(x1, y1, color="green", label="Sensors", markersize=4, marker='o')
-        plt.plot(x2, y2, color="red", label="GPS", markersize=4, marker='o')
-
-        plt.fill(np.append(x1, x2[::-1]), np.append(y1, y2[::-1]), color="#EEEEEE")
+    def create_comparison_plot(self, title, x_label, y_label, unin_x_vals, unin_y_vals, in_x_vals, in_y_vals, gps_x_vals, gps_y_vals):
+        plt.plot(unin_x_vals, unin_y_vals, color="green", label="Uninhibited (w/ GPS)", markersize=4, marker='o', linestyle='dashed')
+        plt.plot(in_x_vals, in_y_vals, color="red", label="Inhibited (w/o GPS)", markersize=5, marker='*')
+        plt.plot(gps_x_vals, gps_y_vals, color="blue", label="GPS", markersize=4, marker='o', linestyle='dashed')
 
         plt.xlabel(x_label)
         plt.ylabel(y_label)
@@ -103,11 +122,12 @@ class Analyzer:
         plt.legend()
         plt.show()
 
-    def create_spf_plot(self, title, x_label, y_label, x_vals, gsd_vals, vxd_vals, vyd_vals, vzd_vals):
+    def create_spf_plot(self, title, x_label, y_label, x_vals, gsd_vals, vxd_vals, vyd_vals, vzd_vals, altd_vals):
         plt.plot(x_vals, gsd_vals, color="orange", label="Ground Speed Diff", markersize=4, marker='o')
         plt.plot(x_vals, vxd_vals, color="blue", label="Velocity X Diff", markersize=4, marker='o')
         plt.plot(x_vals, vyd_vals, color="red", label="Velocity Y Diff", markersize=4, marker='o')
         plt.plot(x_vals, vzd_vals, color="green", label="Velocity Z Diff", markersize=4, marker='o')
+        plt.plot(x_vals, altd_vals, color="yellow", label="Altitude Diff", markersize=4, marker='o')
 
         plt.xlabel(x_label)
         plt.ylabel(y_label)
@@ -135,11 +155,11 @@ class Analyzer:
         return time_dict
 
     def get_max_thresholds(self) -> dict:
-        sd_logs = self.r.get_sd_log_full()
+        inhibited_logs = self.r.get_inhibited_log_full()
         gps_logs = self.r.get_gps_log_full()
         thresholds = {}
 
-        for key, tuple_list_sd in sd_logs.items():
+        for key, tuple_list_sd in inhibited_logs.items():
             if len(tuple_list_sd) == 0 or key not in gps_logs:
                 continue
 
@@ -159,11 +179,11 @@ class Analyzer:
         return thresholds
 
     def get_all_csv_list(self) -> dict:
-        sd_logs = self.r.get_sd_log_full()
+        inhibited_logs = self.r.get_inhibited_log_full()
         gps_logs = self.r.get_gps_log_full()
         all_csvs = {}
 
-        for key, tuple_list_sd in sd_logs.items():
+        for key, tuple_list_sd in inhibited_logs.items():
             if len(tuple_list_sd) == 0 or key not in gps_logs:
                 continue
 
