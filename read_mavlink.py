@@ -15,16 +15,16 @@ from reader import Reader
 def main():
     lock = Lock()
 
-    r = Reader(lock)
-    a = Analyzer(r, lock)
+    r = Reader(lock)  # initialize reader
+    a = Analyzer(r, lock)  # initialize analyzer
 
-    # read_new_data(r, 30, "dp_def_alt_rel")
-    # show_data(r, a)
+    read_new_data(r, 30)  # read and store a new flight log
+    show_data(r, a)  # load flight log and show graphs
 
-    # print_thresholds(r, a)
-    create_all_csvs(r, a)
+    # print_thresholds(r, a)  # print the thresholds
+    # create_all_csvs(r, a)  # create CSVs from log
 
-    # show_graphs_for_all_logs(r, a)
+    # show_graphs_for_all_logs(r, a)  # show all flight graphs
 
 
 def create_all_csvs(r: Reader, a: Analyzer):

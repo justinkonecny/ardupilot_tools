@@ -227,8 +227,8 @@ class Analyzer:
 
             all_csvs[key] = csv
 
-            # y_lim = (0, 12)
-            # self.create_plot("SD/GPS Diff {}".format(key), "Time (ms)", "Difference", plot_time_list, plot_diff_list, None, y_lim)
-            # self.create_plot("SD/GPS Diff {}".format(key), "Time (ms)", "Difference Squared", plot_time_list, plot_diff_sq_list, None, y_lim)
+            y_lim = (0, 600)
+            self.create_plot("IEKF2/GPS Diff {}".format(key), "Time (ms)", "Difference (cm)", plot_time_list, plot_diff_list, None, y_lim)
+            # self.create_plot("IEKF2/GPS Diff {}".format(key), "Time (ms)", "Difference Squared", plot_time_list, plot_diff_sq_list, None, y_lim)
 
         return all_csvs
