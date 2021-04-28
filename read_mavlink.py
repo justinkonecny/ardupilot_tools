@@ -8,9 +8,9 @@ from analyzer import Analyzer
 from reader import Reader
 
 
-# THRESHOLDS (20 April 2021) (3 RC Flights: "dp_def_alt_rel"):
-# AVG: {'GS': 91, 'VX': 89, 'VY': 81, 'VZ': 72, 'ALT': 294}
-# AVG SQS: {'GS': 117, 'VX': 116, 'VY': 101, 'VZ': 89, 'ALT': 316}
+# THRESHOLDS (28 April 2021) (3 GPS Flights: "carter_real_gps_alt_thresh"):
+# AVG: {'GS': 51, 'VX': 65, 'VY': 49, 'VZ': 33, 'ALT': 251}
+# AVG SQS: {'GS': 69, 'VX': 83, 'VY': 64, 'VZ': 39, 'ALT': 259}
 
 def main():
     lock = Lock()
@@ -18,7 +18,7 @@ def main():
     r = Reader(lock)  # initialize reader
     a = Analyzer(r, lock)  # initialize analyzer
 
-    read_new_data(r, 30)  # read and store a new flight log
+    read_new_data(r, 40, "alt_4000mm_10s_200vz_tp75_2000ms_dc3")  # read and store a new flight log
     show_data(r, a)  # load flight log and show graphs
 
     # print_thresholds(r, a)  # print the thresholds
@@ -86,10 +86,13 @@ def read_new_data(r: Reader, time: int, filename: str = None):
     # start reading data
     threads = start_threads(r)
 
+    init_time = time
+
     # wait (seconds)
     while time > 0:
         if time % 5 == 0:
             print("Reading for %d sec" % time)
+        r.curr_time = (init_time - time)
         sleep(1)
         time -= 1
 
@@ -110,6 +113,8 @@ def show_data(r: Reader, a: Analyzer, log_file: str = None):
     # load the given log file, or the latest
     r.load_log_file(log_file)
 
+    print("SPF TIME:", r.spf_time)
+
     a.show_sat_count()
     a.cmp_ground_speed()
     a.cmp_velocity_x()
@@ -123,10 +128,13 @@ def start_threads(r: Reader):
     threads = []
     try:
         t_read_loop = Thread(target=r.run_main_loop)
+        t_key_monitor = Thread(target=r.read_key_stroke_loop)
 
         t_read_loop.start()
+        t_key_monitor.start()
 
         threads.append(t_read_loop)
+        threads.append(t_key_monitor)
     except RuntimeError as e:
         print("Unable to start thread, error: %s" % str(e))
 

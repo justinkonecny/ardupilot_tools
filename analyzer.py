@@ -116,6 +116,12 @@ class Analyzer:
         plt.plot(in_x_vals, in_y_vals, color="red", label="Inhibited (w/o GPS)", markersize=5, marker='*')
         plt.plot(gps_x_vals, gps_y_vals, color="blue", label="GPS", markersize=4, marker='o', linestyle='dashed')
 
+        if self.r.spf_time:
+            vert_line_start = gps_x_vals[0] + (self.r.spf_time * 1000)
+            vert_line_end = vert_line_start + 10000
+            plt.axvline(x=vert_line_start, color="black", linestyle='dashed')
+            plt.axvline(x=vert_line_end, color="black", linestyle='dashed')
+
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         plt.title(title)

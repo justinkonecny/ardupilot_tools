@@ -15,6 +15,8 @@ class Reader:
         self.mutex = lock
         self.connection = None
         self.run = False
+        self.spf_time = None
+        self.curr_time = 0
         self.inhibited_data = {
             GROUND_SPEED: [],
             VELOCITY_X: [],
@@ -65,11 +67,11 @@ class Reader:
 
     def run_main_loop(self):
         while self.run:
-            mavlink_msg = self.connection.recv_match(type="STATUSTEXT", blocking=True)
-            text = mavlink_msg.text
-            if len(text) < 8:
+            mavlink_msg = self.connection.recv_match(type="STATUSTEXT", blocking=False)
+            if not mavlink_msg or len(mavlink_msg.text) < 8:
                 continue
 
+            text = mavlink_msg.text
             if text[:len(MSG_PREFIX_INIT_ALT)] == MSG_PREFIX_INIT_ALT:
                 # handle initial altitude messages
                 self.handle_init_alt_msg(text)
@@ -235,6 +237,13 @@ class Reader:
     def get_spf_log_full(self) -> dict:
         return self.spf_data
 
+    def read_key_stroke_loop(self) -> None:
+        while self.run and self.spf_time is None:
+            input("Press any key...\n")
+            if self.run:
+                self.spf_time = self.curr_time
+                print("NOW", self.spf_time)
+
     def save_log_file(self, filename: str = None):
         curr_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = "out_{}.log".format(curr_time) if filename is None else "out_{}_{}.log".format(curr_time, filename)
@@ -245,7 +254,8 @@ class Reader:
                 PREFIX_EKF_I: self.inhibited_data,
                 PREFIX_GPS: self.gps_data,
                 PREFIX_SPF: self.spf_data,
-                PREFIX_INIT_ALT: self.init_alt
+                PREFIX_INIT_ALT: self.init_alt,
+                PREFIX_SPF_START: self.spf_time
             }
             output_str = json.dumps(output_dict)
             file.write(output_str)
@@ -277,6 +287,7 @@ class Reader:
             self.gps_data = content_dict[PREFIX_GPS]
             self.spf_data = content_dict[PREFIX_SPF]
             self.init_alt = content_dict[PREFIX_INIT_ALT]
+            self.spf_time = content_dict[PREFIX_SPF_START] if PREFIX_SPF_START in content_dict else None
 
             if self.init_alt > 0:
                 print("Updating GPS Initial Altitude to %d cm" % self.init_alt)
