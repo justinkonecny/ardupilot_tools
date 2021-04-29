@@ -18,12 +18,11 @@ def main():
     r = Reader(lock)  # initialize reader
     a = Analyzer(r, lock)  # initialize analyzer
 
-    read_new_data(r, 40, "alt_4000mm_10s_200vz_tp75_2000ms_dc3")  # read and store a new flight log
+    read_new_data(r, 40)  # read and store a new flight log
     show_data(r, a)  # load flight log and show graphs
 
     # print_thresholds(r, a)  # print the thresholds
     # create_all_csvs(r, a)  # create CSVs from log
-
     # show_graphs_for_all_logs(r, a)  # show all flight graphs
 
 
